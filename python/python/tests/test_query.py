@@ -1338,3 +1338,27 @@ async def test_query_timeout_async(tmp_path):
             .nearest_to([0.0, 0.0])
             .to_list(timeout=timedelta(0))
         )
+
+
+def test_ensure_vector_query_validation():
+    """Test ensure_vector_query raises ValueError for empty lists during validation"""
+    from lancedb.query import Query
+
+    # Test valid cases - these should not raise
+    valid_query = Query(vector=[1.0, 2.0])
+    assert valid_query.vector == [1.0, 2.0]
+
+    valid_query_nested = Query(vector=[[1.0, 2.0], [3.0, 4.0]])
+    assert valid_query_nested.vector == [[1.0, 2.0], [3.0, 4.0]]
+
+    # Test empty list - should raise ValueError
+    with pytest.raises(ValueError, match="Vector query must be a non-empty list"):
+        Query(vector=[])
+
+    # Test list with empty inner list - should raise ValueError
+    with pytest.raises(ValueError, match="Vector query must be a non-empty list"):
+        Query(vector=[[]])
+
+    # Test None is allowed (optional field)
+    query_none = Query(vector=None)
+    assert query_none.vector is None

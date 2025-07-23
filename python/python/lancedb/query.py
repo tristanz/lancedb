@@ -26,6 +26,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.fs as pa_fs
 import pydantic
+from pydantic.functional_validators import AfterValidator
 
 from lancedb.pydantic import PYDANTIC_VERSION
 
@@ -65,7 +66,7 @@ def ensure_vector_query(
 ) -> Union[List[float], List[List[float]], pa.Array, List[pa.Array]]:
     if isinstance(val, list):
         if len(val) == 0:
-            return ValueError("Vector query must be a non-empty list")
+            raise ValueError("Vector query must be a non-empty list")
         sample = val[0]
     else:
         if isinstance(val, float):
@@ -78,7 +79,7 @@ def ensure_vector_query(
         return val
     if isinstance(sample, list):
         if len(sample) == 0:
-            return ValueError("Vector query must be a non-empty list")
+            raise ValueError("Vector query must be a non-empty list")
         if isinstance(sample[0], float):
             # val is list of list of floats
             return val
@@ -421,7 +422,7 @@ class Query(pydantic.BaseModel):
     # path though in the future we should unify this to pa.Array everywhere
     vector: Annotated[
         Optional[Union[List[float], List[List[float]], pa.Array, List[pa.Array]]],
-        ensure_vector_query,
+        AfterValidator(ensure_vector_query),
     ] = None
 
     # sql filter to refine the query with
