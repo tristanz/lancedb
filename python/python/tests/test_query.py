@@ -1342,6 +1342,7 @@ async def test_query_timeout_async(tmp_path):
 
 def test_ensure_vector_query_validation():
     """Test ensure_vector_query raises ValueError for empty lists during validation"""
+    import pyarrow as pa
     from lancedb.query import Query
 
     # Test valid cases - these should not raise
@@ -1350,6 +1351,16 @@ def test_ensure_vector_query_validation():
 
     valid_query_nested = Query(vector=[[1.0, 2.0], [3.0, 4.0]])
     assert valid_query_nested.vector == [[1.0, 2.0], [3.0, 4.0]]
+
+    # Test pa.Array - should be valid (requires arbitrary_types_allowed)
+    pa_array = pa.array([1.0, 2.0], type=pa.float32())
+    valid_query_pa = Query(vector=pa_array)
+    assert valid_query_pa.vector == pa_array
+
+    # Test list of pa.Arrays - should be valid
+    pa_arrays = [pa.array([1.0, 2.0]), pa.array([3.0, 4.0])]
+    valid_query_pa_list = Query(vector=pa_arrays)
+    assert valid_query_pa_list.vector == pa_arrays
 
     # Test empty list - should raise ValueError
     with pytest.raises(ValueError, match="Vector query must be a non-empty list"):
@@ -1362,3 +1373,35 @@ def test_ensure_vector_query_validation():
     # Test None is allowed (optional field)
     query_none = Query(vector=None)
     assert query_none.vector is None
+
+
+def test_ensure_vector_query_function_directly():
+    """Test ensure_vector_query function directly to cover the new error case"""
+    import pyarrow as pa
+    from lancedb.query import ensure_vector_query
+
+    # Test valid cases
+    assert ensure_vector_query([1.0, 2.0]) == [1.0, 2.0]
+    assert ensure_vector_query([[1.0, 2.0], [3.0, 4.0]]) == [[1.0, 2.0], [3.0, 4.0]]
+
+    # Test pa.Array cases
+    pa_array = pa.array([1.0, 2.0], type=pa.float32())
+    assert ensure_vector_query(pa_array) == pa_array
+
+    pa_arrays = [pa.array([1.0, 2.0]), pa.array([3.0, 4.0])]
+    assert ensure_vector_query(pa_arrays) == pa_arrays
+
+    # Test error cases
+    with pytest.raises(ValueError, match="Vector query must be a non-empty list"):
+        ensure_vector_query([])
+
+    with pytest.raises(ValueError, match="Vector query must be a non-empty list"):
+        ensure_vector_query([[]])
+
+    # Test the new error case we added - unsupported input types
+    error_msg = "Vector query must be a list of floats, list of lists of floats"
+    with pytest.raises(ValueError, match=error_msg):
+        ensure_vector_query("not a vector")
+
+    with pytest.raises(ValueError, match=error_msg):
+        ensure_vector_query(42)
