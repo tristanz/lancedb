@@ -59,5 +59,5 @@ class OllamaEmbeddings(TextEmbeddingFunction):
     @cached_property
     def _ollama_client(self) -> "ollama.Client":
         ollama = attempt_import_or_raise("ollama")
-        # ToDo explore ollama.AsyncClient
+        # TODO explore ollama.AsyncClient
         return ollama.Client(host=self.host, **self.ollama_client_kwargs)
