@@ -445,6 +445,23 @@ class LanceModel(pydantic.BaseModel):
         return list(cls.safe_get_fields().keys())
 
     @classmethod
+    def field_names_and_aliases(cls) -> List[str]:
+        """
+        Get both field names and their aliases for this model.
+
+        Returns both the actual field names and any aliases defined
+        with Field(alias=...), which is needed for to_pydantic() to work
+        correctly with aliased fields.
+        """
+        names = []
+        for field_name, field_info in cls.safe_get_fields().items():
+            names.append(field_name)
+            # Add alias if it exists and is not None
+            if hasattr(field_info, "alias") and field_info.alias is not None:
+                names.append(field_info.alias)
+        return names
+
+    @classmethod
     def safe_get_fields(cls):
         if PYDANTIC_VERSION.major < 2:
             return cls.__fields__

@@ -763,7 +763,9 @@ class LanceQueryBuilder(ABC):
         List[LanceModel]
         """
         return [
-            model(**{k: v for k, v in row.items() if k in model.field_names()})
+            model(
+                **{k: v for k, v in row.items() if k in model.field_names_and_aliases()}
+            )
             for row in self.to_arrow(timeout=timeout).to_pylist()
         ]
 
