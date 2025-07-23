@@ -41,3 +41,8 @@ dist
 target
 
 **/sccache.log
+
+# Coding Agents (for now)
+.cursor
+**/CLAUDE.md
+.claude
