@@ -29,6 +29,9 @@ import pydantic
 
 from lancedb.pydantic import PYDANTIC_VERSION
 
+# Use pydantic v1 validator which works in both v1 and v2
+from pydantic import validator
+
 from . import __version__
 from .arrow import AsyncRecordBatchReader
 from .dependencies import pandas as pd
@@ -37,7 +40,6 @@ from .rerankers.rrf import RRFReranker
 from .rerankers.util import check_reranker_result
 from .util import flatten_columns
 
-from typing_extensions import Annotated
 
 if TYPE_CHECKING:
     import sys
@@ -65,7 +67,7 @@ def ensure_vector_query(
 ) -> Union[List[float], List[List[float]], pa.Array, List[pa.Array]]:
     if isinstance(val, list):
         if len(val) == 0:
-            return ValueError("Vector query must be a non-empty list")
+            raise ValueError("Vector query must be a non-empty list")
         sample = val[0]
     else:
         if isinstance(val, float):
@@ -78,13 +80,19 @@ def ensure_vector_query(
         return val
     if isinstance(sample, list):
         if len(sample) == 0:
-            return ValueError("Vector query must be a non-empty list")
+            raise ValueError("Vector query must be a non-empty list")
         if isinstance(sample[0], float):
             # val is list of list of floats
             return val
     if isinstance(sample, float):
         # val is a list of floats
         return val
+
+    # If we reach here, the input format is not supported
+    raise ValueError(
+        "Vector query must be a list of floats, list of lists of floats, "
+        "PyArrow array, or list of PyArrow arrays"
+    )
 
 
 class FullTextQueryType(str, Enum):
@@ -419,9 +427,8 @@ class Query(pydantic.BaseModel):
     #
     # Note: today this will be floats on the sync path and pa.Array on the async
     # path though in the future we should unify this to pa.Array everywhere
-    vector: Annotated[
-        Optional[Union[List[float], List[List[float]], pa.Array, List[pa.Array]]],
-        ensure_vector_query,
+    vector: Optional[
+        Union[List[float], List[List[float]], pa.Array, List[pa.Array]]
     ] = None
 
     # sql filter to refine the query with
@@ -514,6 +521,14 @@ class Query(pydantic.BaseModel):
             arbitrary_types_allowed = True
     else:
         model_config = {"arbitrary_types_allowed": True}
+
+    # Vector field validation using pydantic v1 syntax (works in both v1 and v2)
+    @validator("vector")
+    @classmethod
+    def validate_vector_field(cls, v):
+        if v is not None:
+            return ensure_vector_query(v)
+        return v
 
 
 class LanceQueryBuilder(ABC):
